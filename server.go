@@ -9,6 +9,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/tergelm/go_hackernews/graph"
 	"github.com/tergelm/go_hackernews/graph/generated"
+	"github.com/tergelm/go_hackernews/internal/pkg/db/migrations/postgresql"
 )
 
 const defaultPort = "8080"
@@ -19,6 +20,11 @@ func main() {
 		port = defaultPort
 	}
 
+	// Connect to database
+	db_handler.InitClient()
+	db_handler.HandleMigrate()
+
+	// Setup server
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))

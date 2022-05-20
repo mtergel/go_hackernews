@@ -14,6 +14,8 @@ type User struct {
 	Password string `json:"password"`
 }
 
+type WrongUsernameOrPasswordError struct{}
+
 func (user *User) Create() {
 	query, err := db_handler.DBClient.Prepare(`
           INSERT INTO users (username, password)
@@ -29,6 +31,28 @@ func (user *User) Create() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func (user *User) Authenticate() bool {
+	query, err := db_handler.DBClient.Prepare(`
+    SELECT password FROM users WHERE username = $1;
+  `)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	row := query.QueryRow(user.Username)
+	var hashedPassword string
+	err = row.Scan(&hashedPassword)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false
+		} else {
+			log.Fatal(err)
+		}
+	}
+
+	return CheckPasswordHash(user.Password, hashedPassword)
 }
 
 func GetUserIdByUsername(username string) (int, error) {
@@ -59,7 +83,11 @@ func HashPassword(password string) (string, error) {
 	return string(bytes), err
 }
 
-func CheckPassword(password, hash string) bool {
+func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+func (m *WrongUsernameOrPasswordError) Error() string {
+	return "Wrong username or password"
 }

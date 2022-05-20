@@ -6,20 +6,24 @@ package graph
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/tergelm/go_hackernews/graph/generated"
 	"github.com/tergelm/go_hackernews/graph/model"
+	"github.com/tergelm/go_hackernews/internal/links"
 )
 
 func (r *mutationResolver) CreateLink(ctx context.Context, input model.NewLink) (*model.Link, error) {
-        var link model.Link
-        var user model.User
-        link.Address = input.Address
-        link.Title = input.Title
-        user.Name = "test"
-        link.User = &user
-
-        return &link, nil
+	// TODO Add user
+	var link links.Link
+	link.Title = input.Title
+	link.Address = input.Address
+	createdLinkId := link.Save()
+	return &model.Link{
+		ID:      strconv.FormatInt(createdLinkId, 10),
+		Title:   link.Title,
+		Address: link.Address,
+	}, nil
 }
 
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (string, error) {
@@ -35,17 +39,19 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, input model.Refresh
 }
 
 func (r *queryResolver) Links(ctx context.Context) ([]*model.Link, error) {
-        // panic(fmt.Errorf("not implemented"))
+	// panic(fmt.Errorf("not implemented"))
+	var resultsLinks []*model.Link
+	var dbLinks []links.Link
+	dbLinks = links.GetAll()
+	for _, link := range dbLinks {
+		resultsLinks = append(resultsLinks, &model.Link{
+			ID:      link.Id,
+			Title:   link.Title,
+			Address: link.Address,
+		})
+	}
 
-        var links []*model.Link
-        dummyLink := model.Link{
-          Title: "Dummy link",
-          Address: "https://address.org",
-          User: &model.User{Name: "admin"},
-        }
-
-        links = append(links, &dummyLink)
-        return links, nil
+	return resultsLinks, nil
 }
 
 // Mutation returns generated.MutationResolver implementation.
@@ -54,5 +60,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
+type (
+	mutationResolver struct{ *Resolver }
+	queryResolver    struct{ *Resolver }
+)
